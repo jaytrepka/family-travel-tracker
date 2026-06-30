@@ -162,18 +162,26 @@ export default function WorldPage() {
           {/* Legend */}
           <div className="mt-auto px-4 py-3 border-t border-gray-100 bg-gray-50">
             <p className="text-xs text-gray-500 font-medium mb-2">Legend</p>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               {persons.map((p) => (
                 <div key={p.id} className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  {/* Mini pin preview */}
+                  <svg width="14" height="16" viewBox="0 0 14 16">
+                    <path d="M7,15 C2,10 1,6 7,1 C13,6 12,10 7,15" fill={p.color} stroke="white" strokeWidth="1" />
+                    <circle cx="7" cy="6" r="2" fill="white" opacity="0.6" />
+                  </svg>
                   <span className="text-xs text-gray-600">{p.emoji} {p.name}</span>
                 </div>
               ))}
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-sm flex-shrink-0 bg-gray-300" />
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-gray-200 border border-gray-300" />
                 <span className="text-xs text-gray-400">Not visited</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1 italic">Horizontal bands = multiple visitors</p>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-indigo-50 border border-indigo-200" />
+                <span className="text-xs text-gray-400">Visited</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1 italic">Pins = visitors per country</p>
             </div>
           </div>
         </aside>

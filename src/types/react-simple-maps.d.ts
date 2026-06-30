@@ -23,7 +23,12 @@ declare module 'react-simple-maps' {
   export interface GeoFeature {
     rsmKey: string;
     properties: Record<string, string | number | undefined>;
-    geometry: unknown;
+    // Full GeoJSON geometry — cast to GeoJSON.Feature when passing to d3-geo
+    geometry: {
+      type: string;
+      coordinates: unknown;
+    };
+    type: string;
   }
 
   export const Geography: React.FC<{
@@ -31,6 +36,17 @@ declare module 'react-simple-maps' {
     fill?: string;
     stroke?: string;
     strokeWidth?: number;
+    style?: {
+      default?: React.CSSProperties;
+      hover?: React.CSSProperties;
+      pressed?: React.CSSProperties;
+    };
+    onClick?: () => void;
+  }>;
+
+  export const Marker: React.FC<{
+    coordinates: [number, number];
+    children?: React.ReactNode;
     style?: {
       default?: React.CSSProperties;
       hover?: React.CSSProperties;

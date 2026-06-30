@@ -5,9 +5,11 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Marker,
   ZoomableGroup,
 } from "react-simple-maps";
-import { PatternDefs, getFill } from "./PatternDefs";
+import { geoCentroid } from "d3-geo";
+import CountryPins from "./CountryPins";
 import { CountryWithVisitors, MapFilters } from "@/types";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -22,22 +24,24 @@ const TOPOJSON_ALIASES: Record<string, string> = {
   "dem. rep. congo": "democratic republic of the congo",
   "n. korea": "north korea",
   "s. korea": "south korea",
-  "republic of korea": "south korea",
   "faeroe is.": "faroe islands",
   "bosnia and herz.": "bosnia and herzegovina",
   "eq. guinea": "equatorial guinea",
   "swaziland": "eswatini",
-  "myanmar": "myanmar (burma)",
+  "myanmar": "myanmar",
   "united states of america": "united states",
   "u.s. virgin is.": "us virgin islands",
   "dominican rep.": "dominican republic",
+  "solomon is.": "solomon islands",
+  "timor-leste": "timor-leste",
+  "e. timor": "timor-leste",
+  "n. cyprus": "northern cyprus",
 };
 
 interface WorldMapProps {
   countries: CountryWithVisitors[];
   filters: MapFilters;
   selectedCountryCode: string | null;
-  /** code = alpha-3 if in DB, "" if unknown. geoName is always the raw topojson name. */
   onCountryClick: (code: string, geoName: string) => void;
 }
 
@@ -52,7 +56,6 @@ export default function WorldMap({
     zoom: 1,
   });
 
-  // name (lowercase) → alpha-3 code
   const nameToCode = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of countries) {
@@ -76,18 +79,6 @@ export default function WorldMap({
     return map;
   }, [countries, filters]);
 
-  const uniqueColorSets = useMemo(() => {
-    const seen = new Set<string>();
-    const sets: string[][] = [];
-    for (const colors of countryFillMap.values()) {
-      if (colors.length > 1) {
-        const key = colors.join(",");
-        if (!seen.has(key)) { seen.add(key); sets.push(colors); }
-      }
-    }
-    return sets;
-  }, [countryFillMap]);
-
   const handleMoveEnd = useCallback(
     (pos: { coordinates: [number, number]; zoom: number }) => setPosition(pos),
     []
@@ -105,7 +96,6 @@ export default function WorldMap({
         projectionConfig={{ scale: 147, center: [0, 20] }}
         style={{ width: "100%", height: "100%" }}
       >
-        <PatternDefs colorSets={uniqueColorSets} />
         <ZoomableGroup
           zoom={position.zoom}
           center={position.coordinates}
@@ -119,21 +109,37 @@ export default function WorldMap({
                 const code = resolveCode(geoName);
                 const colors = code ? (countryFillMap.get(code) ?? []) : [];
                 const isSelected = code !== "" && selectedCountryCode === code;
+                const isVisited = colors.length > 0;
+
+                // Centroid for pin placement
+                const centroid = geoCentroid(geo as unknown as GeoJSON.Feature) as [number, number];
 
                 return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill={getFill(colors)}
-                    stroke={isSelected ? "#1E3A5F" : "#FFFFFF"}
-                    strokeWidth={isSelected ? 2 : 0.5}
-                    style={{
-                      default: { outline: "none", cursor: "pointer" },
-                      hover: { outline: "none", filter: "brightness(0.85)", cursor: "pointer" },
-                      pressed: { outline: "none" },
-                    }}
-                    onClick={() => onCountryClick(code, geoName)}
-                  />
+                  <React.Fragment key={geo.rsmKey}>
+                    {/* Country shape — neutral fill, subtle highlight for visited */}
+                    <Geography
+                      geography={geo}
+                      fill={isSelected ? "#C7D2FE" : isVisited ? "#EEF2FF" : "#E5E7EB"}
+                      stroke={isSelected ? "#4F46E5" : "#FFFFFF"}
+                      strokeWidth={isSelected ? 1.5 : 0.5}
+                      style={{
+                        default: { outline: "none", cursor: "pointer" },
+                        hover: { outline: "none", fill: isVisited ? "#C7D2FE" : "#D1D5DB", cursor: "pointer" },
+                        pressed: { outline: "none" },
+                      }}
+                      onClick={() => onCountryClick(code, geoName)}
+                    />
+
+                    {/* Pins rendered on top of the country shape */}
+                    {isVisited && (
+                      <Marker
+                        coordinates={centroid}
+                        onClick={() => onCountryClick(code, geoName)}
+                      >
+                        <CountryPins colors={colors} />
+                      </Marker>
+                    )}
+                  </React.Fragment>
                 );
               })
             }

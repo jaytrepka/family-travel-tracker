@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Person {
   id: string;
@@ -33,13 +33,28 @@ interface TripFormData {
 
 interface TripFormProps {
   persons: Person[];
-  countries: Country[];
+  /** Pass existing countries for edit mode; for new trips the form fetches all countries */
+  countries?: Country[];
   initialData?: TripFormData;
 }
 
-export default function TripForm({ persons, countries, initialData }: TripFormProps) {
+export default function TripForm({ persons, countries: countriesProp, initialData }: TripFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditing = Boolean(initialData?.id);
+
+  // Pre-select country from URL param (e.g. ?country=ALB when coming from map)
+  const preselectedCode = searchParams.get("country") ?? "";
+
+  const [countries, setCountries] = useState<Country[]>(countriesProp ?? []);
+  const [countrySearch, setCountrySearch] = useState("");
+
+  // Load all countries from API (always, so admins see everything)
+  useEffect(() => {
+    fetch("/api/countries/all")
+      .then((r) => r.json())
+      .then((data: Country[]) => setCountries(data));
+  }, []);
 
   const [form, setForm] = useState<TripFormData>(
     initialData ?? {
@@ -53,7 +68,7 @@ export default function TripForm({ persons, countries, initialData }: TripFormPr
       coverPhotoUrl: "",
       published: false,
       participantIds: [],
-      countryCodes: [],
+      countryCodes: preselectedCode ? [preselectedCode] : [],
     }
   );
   const [saving, setSaving] = useState(false);
@@ -106,12 +121,6 @@ export default function TripForm({ persons, countries, initialData }: TripFormPr
     router.push("/admin/dashboard");
     router.refresh();
   }
-
-  // Group countries by continent for the UI
-  const byContinent = countries.reduce<Record<string, Country[]>>((acc, c) => {
-    (acc[c.continent] ??= []).push(c);
-    return acc;
-  }, {});
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -189,9 +198,37 @@ export default function TripForm({ persons, countries, initialData }: TripFormPr
 
       {/* Countries */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Countries</label>
-        <div className="border border-gray-200 rounded-xl max-h-48 overflow-y-auto p-3 space-y-3">
-          {Object.entries(byContinent).map(([continent, cs]) => (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Countries
+          {form.countryCodes.length > 0 && (
+            <span className="ml-2 text-xs text-indigo-600 font-normal">
+              {form.countryCodes.length} selected
+            </span>
+          )}
+        </label>
+        {/* Search box */}
+        <input
+          type="text"
+          placeholder="🔍 Filter countries…"
+          value={countrySearch}
+          onChange={(e) => setCountrySearch(e.target.value)}
+          className="w-full px-3 py-1.5 mb-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+        <div className="border border-gray-200 rounded-xl max-h-52 overflow-y-auto p-3 space-y-3">
+          {countries.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-2">Loading countries…</p>
+          )}
+          {Object.entries(
+            countries
+              .filter((c) =>
+                countrySearch.trim() === "" ||
+                c.name.toLowerCase().includes(countrySearch.toLowerCase())
+              )
+              .reduce<Record<string, Country[]>>((acc, c) => {
+                (acc[c.continent] ??= []).push(c);
+                return acc;
+              }, {})
+          ).map(([continent, cs]) => (
             <div key={continent}>
               <p className="text-xs font-semibold text-gray-400 uppercase mb-1">
                 {continent.replace("_", " ")}

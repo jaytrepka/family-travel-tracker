@@ -1,6 +1,7 @@
-import { PrismaClient, Continent } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as fs from "fs";
+import { ALL_COUNTRIES } from "./all-countries";
 
 // Load .env.local
 if (fs.existsSync(".env.local")) {
@@ -47,34 +48,12 @@ async function main() {
 
   console.log("✅ People seeded");
 
-  // ── Sample countries ──────────────────────────────────────────────────────
-  const countries: { code: string; name: string; continent: Continent }[] = [
-    { code: "CZE", name: "Czech Republic", continent: "EUROPE" },
-    { code: "ALB", name: "Albania", continent: "EUROPE" },
-    { code: "HRV", name: "Croatia", continent: "EUROPE" },
-    { code: "ITA", name: "Italy", continent: "EUROPE" },
-    { code: "FRA", name: "France", continent: "EUROPE" },
-    { code: "DEU", name: "Germany", continent: "EUROPE" },
-    { code: "ESP", name: "Spain", continent: "EUROPE" },
-    { code: "GRC", name: "Greece", continent: "EUROPE" },
-    { code: "AUT", name: "Austria", continent: "EUROPE" },
-    { code: "SVK", name: "Slovakia", continent: "EUROPE" },
-    { code: "POL", name: "Poland", continent: "EUROPE" },
-    { code: "HUN", name: "Hungary", continent: "EUROPE" },
-    { code: "THA", name: "Thailand", continent: "ASIA" },
-    { code: "JPN", name: "Japan", continent: "ASIA" },
-    { code: "USA", name: "United States", continent: "NORTH_AMERICA" },
-    { code: "MEX", name: "Mexico", continent: "NORTH_AMERICA" },
-    { code: "EGY", name: "Egypt", continent: "AFRICA" },
-    { code: "MAR", name: "Morocco", continent: "AFRICA" },
-    { code: "AUS", name: "Australia", continent: "OCEANIA" },
-  ];
-
-  for (const c of countries) {
-    await prisma.country.upsert({ where: { code: c.code }, update: {}, create: c });
+  // ── All world countries ───────────────────────────────────────────────────
+  for (const c of ALL_COUNTRIES) {
+    await prisma.country.upsert({ where: { code: c.code }, update: { name: c.name, continent: c.continent }, create: c });
   }
 
-  console.log("✅ Countries seeded");
+  console.log(`✅ Countries seeded (${ALL_COUNTRIES.length})`);
 
   // ── Sample trip ───────────────────────────────────────────────────────────
   const trip = await prisma.trip.upsert({
