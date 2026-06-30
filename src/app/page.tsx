@@ -165,10 +165,9 @@ export default function WorldPage() {
             <div className="flex flex-col gap-2">
               {persons.map((p) => (
                 <div key={p.id} className="flex items-center gap-2">
-                  {/* Mini pin preview matching CountryPins size */}
-                  <svg width="10" height="12" viewBox="-3 -8 6 9">
-                   <path d="M0,0 C-2.2,-1.8 -2.8,-6 0,-7 C2.8,-6 2.2,-1.8 0,0" fill={p.color} stroke="white" strokeWidth="0.8" />
-                   <circle cx="0" cy="-4.5" r="1.3" fill="white" opacity="0.6" />
+                  {/* Dot indicator preview */}
+                  <svg width="10" height="10" viewBox="-5 -5 10 10">
+                   <circle cx="0" cy="0" r="3" fill={p.color} stroke="white" strokeWidth="0.8" />
                   </svg>
                   <span className="text-xs text-gray-600">{p.emoji} {p.name}</span>
                 </div>
