@@ -28,10 +28,14 @@ export default function MapFilters({ persons, filters, onChange }: MapFiltersPro
   }
 
   function togglePerson(id: string) {
-    const next = filters.personIds.includes(id)
-      ? filters.personIds.filter((p) => p !== id)
-      : [...filters.personIds, id];
-    onChange({ ...filters, personIds: next });
+    const allIds = persons.map((p) => p.id);
+    // If this person is already the sole selection → reset to all
+    if (filters.personIds.length === 1 && filters.personIds[0] === id) {
+      onChange({ ...filters, personIds: allIds });
+    } else {
+      // Select only this person
+      onChange({ ...filters, personIds: [id] });
+    }
   }
 
   return (
@@ -62,14 +66,18 @@ export default function MapFilters({ persons, filters, onChange }: MapFiltersPro
       {/* Person toggles */}
       <div className="flex gap-2">
         {persons.map((person) => {
-          const active =
-            filters.personIds.length === 0 || filters.personIds.includes(person.id);
+          const allSelected = filters.personIds.length === persons.length;
+          const active = allSelected || filters.personIds.includes(person.id);
+          const solo = filters.personIds.length === 1 && filters.personIds[0] === person.id;
           return (
             <button
               key={person.id}
               onClick={() => togglePerson(person.id)}
+              title={solo ? `Click to show all` : `Show only ${person.name}`}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all text-xs font-medium ${
-                active ? "text-white border-transparent" : "bg-white border-gray-300 text-gray-500"
+                active
+                  ? "text-white border-transparent"
+                  : "bg-white border-gray-300 text-gray-400 opacity-40"
               }`}
               style={active ? { backgroundColor: person.color, borderColor: person.color } : {}}
             >
