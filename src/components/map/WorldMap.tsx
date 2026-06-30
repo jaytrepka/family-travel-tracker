@@ -9,7 +9,7 @@ import {
 } from "react-simple-maps";
 import { CountryWithVisitors, MapFilters } from "@/types";
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 // Family color when multiple/all people are selected
 const FAMILY_COLOR = "#6366F1"; // indigo-500
