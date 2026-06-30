@@ -3,6 +3,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import type { Trip, TripParticipant, Person, TripCountry } from "@prisma/client";
+
+type TripWithRelations = Trip & {
+  participants: (TripParticipant & { person: Pick<Person, "name" | "color" | "emoji"> })[];
+  countries: Pick<TripCountry, "countryCode">[];
+};
 
 async function getStats() {
   const [tripCount, publishedCount, countryCount, personCount] = await Promise.all([
@@ -14,7 +20,7 @@ async function getStats() {
   return { tripCount, publishedCount, countryCount, personCount };
 }
 
-async function getAllTrips() {
+async function getAllTrips(): Promise<TripWithRelations[]> {
   return prisma.trip.findMany({
     orderBy: { startDate: "desc" },
     include: {
@@ -92,7 +98,7 @@ export default async function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {trips.map((trip) => (
+                {trips.map((trip: TripWithRelations) => (
                   <tr key={trip.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-800">{trip.title}</td>
                     <td className="px-4 py-3 text-gray-500">
