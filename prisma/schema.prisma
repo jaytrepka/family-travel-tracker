@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── People ──────────────────────────────────────────────────────────────────
+
+model Person {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  color     String            // hex color, e.g. "#3B82F6"
+  emoji     String            @default("👤")
+  order     Int               @default(0)
+  trips     TripParticipant[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+// ─── Geography ───────────────────────────────────────────────────────────────
+
+model Country {
+  code      String        @id // ISO 3166-1 alpha-3 (used by topojson), e.g. "CZE"
+  name      String
+  continent Continent
+  trips     TripCountry[]
+}
+
+enum Continent {
+  EUROPE
+  ASIA
+  AFRICA
+  NORTH_AMERICA
+  SOUTH_AMERICA
+  OCEANIA
+  ANTARCTICA
+}
+
+// ─── Trips ───────────────────────────────────────────────────────────────────
+
+model Trip {
+  id            String            @id @default(cuid())
+  title         String
+  slug          String            @unique
+  startDate     DateTime
+  endDate       DateTime
+  description   String?           @db.Text
+  funFacts      String?           @db.Text
+  blogUrl       String?
+  coverPhotoUrl String?
+  published     Boolean           @default(false)
+  participants  TripParticipant[]
+  countries     TripCountry[]
+  places        Place[]
+  photos        Photo[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+// ─── Join Tables ─────────────────────────────────────────────────────────────
+
+model TripParticipant {
+  trip     Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId   String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String
+
+  @@id([tripId, personId])
+}
+
+model TripCountry {
+  trip        Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId      String
+  country     Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+  countryCode String
+
+  @@id([tripId, countryCode])
+}
+
+// ─── Places ──────────────────────────────────────────────────────────────────
+
+model Place {
+  id          String        @id @default(cuid())
+  trip        Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId      String
+  name        String
+  description String?       @db.Text
+  lat         Float?
+  lng         Float?
+  category    PlaceCategory @default(SIGHTSEEING)
+  date        DateTime?
+  order       Int           @default(0)
+  photos      Photo[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum PlaceCategory {
+  ACCOMMODATION
+  SIGHTSEEING
+  KID_FRIENDLY
+  RESTAURANT
+  TRANSPORT
+  NATURE
+  OTHER
+}
+
+// ─── Photos ──────────────────────────────────────────────────────────────────
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  caption   String?
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId    String
+  place     Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  placeId   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}

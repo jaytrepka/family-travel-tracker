@@ -1,65 +1,172 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
+import MapFilters from "@/components/map/MapFilters";
+import CountryPopup from "@/components/map/CountryPopup";
+import { CountryWithVisitors, MapFilters as IMapFilters, PersonWithTrips } from "@/types";
+
+const WorldMap = dynamic(() => import("@/components/map/WorldMap"), { ssr: false });
+
+export default function WorldPage() {
+  const [persons, setPersons] = useState<PersonWithTrips[]>([]);
+  const [countries, setCountries] = useState<CountryWithVisitors[]>([]);
+  const [filters, setFilters] = useState<IMapFilters>({ continents: [], personIds: [] });
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/persons").then((r) => r.json()),
+      fetch("/api/countries").then((r) => r.json()),
+    ]).then(([p, c]) => {
+      setPersons(p);
+      setCountries(c);
+      setFilters({ continents: [], personIds: p.map((x: PersonWithTrips) => x.id) });
+      setLoading(false);
+    });
+  }, []);
+
+  const selectedCountry = selectedCode
+    ? countries.find((c) => c.code === selectedCode) ?? null
+    : null;
+
+  const handleCountryClick = useCallback((code: string) => {
+    setSelectedCode((prev) => (prev === code ? null : code));
+  }, []);
+
+  const searchResults =
+    search.trim().length > 1
+      ? countries.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
+      : [];
+
+  const leaderboard = persons
+    .filter((p) => filters.personIds.includes(p.id))
+    .map((p) => ({
+      ...p,
+      count: countries.filter((c) => c.visitorIds.includes(p.id)).length,
+      visitedCountries: countries
+        .filter((c) => c.visitorIds.includes(p.id))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center">
+          <div className="text-5xl mb-4 animate-bounce">🌍</div>
+          <p className="text-gray-500">Loading the world…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="flex flex-col h-[calc(100vh-56px)]">
+      <MapFilters persons={persons} filters={filters} onChange={setFilters} />
+
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Map area */}
+        <div className="flex-1 relative">
+          <WorldMap
+            countries={countries}
+            filters={filters}
+            selectedCountryCode={selectedCode}
+            onCountryClick={handleCountryClick}
+          />
+
+          {/* Search */}
+          <div className="absolute top-3 left-3 z-30 w-64">
+            <input
+              type="text"
+              placeholder="🔍 Search country…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 shadow bg-white/90 backdrop-blur text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {searchResults.length > 0 && (
+              <ul className="mt-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
+                {searchResults.slice(0, 6).map((c) => (
+                  <li key={c.code}>
+                    <button
+                      className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm flex items-center gap-2"
+                      onClick={() => { setSelectedCode(c.code); setSearch(""); }}
+                    >
+                      <span className="font-medium">{c.name}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{c.continent.replace("_", " ")}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {selectedCountry && (
+            <CountryPopup
+              country={selectedCountry}
+              persons={persons}
+              onClose={() => setSelectedCode(null)}
+            />
+          )}
         </div>
-      </main>
+
+        {/* Leaderboard */}
+        <aside className="hidden lg:flex flex-col w-72 border-l border-gray-100 bg-white overflow-y-auto">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h2 className="font-bold text-gray-700">🏆 Leaderboard</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Countries visited</p>
+          </div>
+          <ul className="divide-y divide-gray-50">
+            {leaderboard.map((person, i) => (
+              <li key={person.id} className="p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-lg font-bold text-gray-300 w-5">{i + 1}</span>
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
+                    style={{ backgroundColor: person.color }}
+                  >
+                    {person.emoji}
+                  </span>
+                  <span className="font-semibold text-gray-800">{person.name}</span>
+                  <span className="ml-auto text-2xl font-bold" style={{ color: person.color }}>
+                    {person.count}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 pl-11">
+                  {person.visitedCountries.map((c) => (
+                    <button
+                      key={c.code}
+                      onClick={() => setSelectedCode(c.code)}
+                      className="text-xs text-gray-500 hover:text-indigo-600 hover:underline"
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-auto px-4 py-3 border-t border-gray-100 bg-gray-50">
+            <p className="text-xs text-gray-500 font-medium mb-2">Legend</p>
+            <div className="flex flex-col gap-1.5">
+              {persons.map((p) => (
+                <div key={p.id} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="text-xs text-gray-600">{p.emoji} {p.name}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-sm flex-shrink-0 bg-gray-300" />
+                <span className="text-xs text-gray-400">Not visited</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1 italic">Diagonal stripes = multiple visitors</p>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
