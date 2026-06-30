@@ -12,6 +12,30 @@ import { CountryWithVisitors, MapFilters } from "@/types";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
+// world-atlas uses some names that differ from standard usage — map them to our DB names
+const TOPOJSON_ALIASES: Record<string, string> = {
+  "czechia": "czech republic",
+  "s. sudan": "south sudan",
+  "w. sahara": "western sahara",
+  "central african rep.": "central african republic",
+  "congo": "republic of the congo",
+  "dr congo": "democratic republic of the congo",
+  "dem. rep. congo": "democratic republic of the congo",
+  "n. korea": "north korea",
+  "s. korea": "south korea",
+  "republic of korea": "south korea",
+  "north macedonia": "north macedonia",
+  "faeroe is.": "faroe islands",
+  "bosnia and herz.": "bosnia and herzegovina",
+  "trinidad and tobago": "trinidad and tobago",
+  "eq. guinea": "equatorial guinea",
+  "swaziland": "eswatini",
+  "myanmar": "myanmar (burma)",
+  "united states of america": "united states",
+  "u.s. virgin is.": "us virgin islands",
+  "dominican rep.": "dominican republic",
+};
+
 interface WorldMapProps {
   countries: CountryWithVisitors[];
   filters: MapFilters;
@@ -30,13 +54,20 @@ export default function WorldMap({
     zoom: 1,
   });
 
-  // Build lookup: countryCode -> filtered visitor colors
+  // name (lowercase) → alpha-3 code lookup
+  const nameToCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of countries) {
+      map.set(c.name.toLowerCase(), c.code);
+    }
+    return map;
+  }, [countries]);
+
+  // alpha-3 code → filtered visitor colors
   const countryFillMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const c of countries) {
-      // Apply continent filter
       if (filters.continents.length > 0 && !filters.continents.includes(c.continent)) continue;
-      // Apply person filter: only keep colors of selected persons
       const filteredColors = c.visitorColors.filter((_, idx) =>
         filters.personIds.includes(c.visitorIds[idx])
       );
@@ -47,7 +78,7 @@ export default function WorldMap({
     return map;
   }, [countries, filters]);
 
-  // Collect all unique color-sets to pre-generate SVG patterns
+  // Unique color-sets for pre-generating SVG stripe patterns
   const uniqueColorSets = useMemo(() => {
     const seen = new Set<string>();
     const sets: string[][] = [];
@@ -68,6 +99,13 @@ export default function WorldMap({
     []
   );
 
+  function resolveCode(geoName: string | undefined): string {
+    if (!geoName) return "";
+    const lower = geoName.toLowerCase();
+    const aliased = TOPOJSON_ALIASES[lower] ?? lower;
+    return nameToCode.get(aliased) ?? nameToCode.get(lower) ?? "";
+  }
+
   return (
     <div className="w-full h-full bg-sky-50 rounded-xl overflow-hidden shadow-inner">
       <ComposableMap
@@ -84,12 +122,10 @@ export default function WorldMap({
           <Geographies geography={GEO_URL}>
             {({ geographies }: { geographies: import("react-simple-maps").GeoFeature[] }) =>
               geographies.map((geo: import("react-simple-maps").GeoFeature) => {
-                // world-atlas uses numeric ISO codes; we map via properties.name
-                // react-simple-maps exposes ISO_A3 via geo.properties
-                const rawCode = geo.properties?.["Alpha-3"] ?? geo.properties?.name;
-                const code = String(rawCode ?? "");
-                const colors = countryFillMap.get(code) ?? [];
-                const isSelected = selectedCountryCode === code;
+                const geoName = String(geo.properties?.name ?? "");
+                const code = resolveCode(geoName);
+                const colors = code ? (countryFillMap.get(code) ?? []) : [];
+                const isSelected = selectedCountryCode === code && code !== "";
                 const fill = getFill(colors);
 
                 return (
@@ -104,7 +140,7 @@ export default function WorldMap({
                       hover: { outline: "none", filter: "brightness(0.85)", cursor: "pointer" },
                       pressed: { outline: "none" },
                     }}
-                    onClick={() => onCountryClick(code)}
+                    onClick={() => code && onCountryClick(code)}
                   />
                 );
               })
