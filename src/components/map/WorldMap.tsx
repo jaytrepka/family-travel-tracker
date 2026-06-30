@@ -12,22 +12,19 @@ import { CountryWithVisitors, MapFilters } from "@/types";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// world-atlas uses some names that differ from standard usage — map them to our DB names
+// world-atlas name → our DB country name (lowercase)
 const TOPOJSON_ALIASES: Record<string, string> = {
   "czechia": "czech republic",
   "s. sudan": "south sudan",
   "w. sahara": "western sahara",
   "central african rep.": "central african republic",
   "congo": "republic of the congo",
-  "dr congo": "democratic republic of the congo",
   "dem. rep. congo": "democratic republic of the congo",
   "n. korea": "north korea",
   "s. korea": "south korea",
   "republic of korea": "south korea",
-  "north macedonia": "north macedonia",
   "faeroe is.": "faroe islands",
   "bosnia and herz.": "bosnia and herzegovina",
-  "trinidad and tobago": "trinidad and tobago",
   "eq. guinea": "equatorial guinea",
   "swaziland": "eswatini",
   "myanmar": "myanmar (burma)",
@@ -40,7 +37,8 @@ interface WorldMapProps {
   countries: CountryWithVisitors[];
   filters: MapFilters;
   selectedCountryCode: string | null;
-  onCountryClick: (code: string) => void;
+  /** code = alpha-3 if in DB, "" if unknown. geoName is always the raw topojson name. */
+  onCountryClick: (code: string, geoName: string) => void;
 }
 
 export default function WorldMap({
@@ -54,7 +52,7 @@ export default function WorldMap({
     zoom: 1,
   });
 
-  // name (lowercase) → alpha-3 code lookup
+  // name (lowercase) → alpha-3 code
   const nameToCode = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of countries) {
@@ -78,17 +76,13 @@ export default function WorldMap({
     return map;
   }, [countries, filters]);
 
-  // Unique color-sets for pre-generating SVG stripe patterns
   const uniqueColorSets = useMemo(() => {
     const seen = new Set<string>();
     const sets: string[][] = [];
     for (const colors of countryFillMap.values()) {
       if (colors.length > 1) {
         const key = colors.join(",");
-        if (!seen.has(key)) {
-          seen.add(key);
-          sets.push(colors);
-        }
+        if (!seen.has(key)) { seen.add(key); sets.push(colors); }
       }
     }
     return sets;
@@ -99,8 +93,7 @@ export default function WorldMap({
     []
   );
 
-  function resolveCode(geoName: string | undefined): string {
-    if (!geoName) return "";
+  function resolveCode(geoName: string): string {
     const lower = geoName.toLowerCase();
     const aliased = TOPOJSON_ALIASES[lower] ?? lower;
     return nameToCode.get(aliased) ?? nameToCode.get(lower) ?? "";
@@ -125,22 +118,21 @@ export default function WorldMap({
                 const geoName = String(geo.properties?.name ?? "");
                 const code = resolveCode(geoName);
                 const colors = code ? (countryFillMap.get(code) ?? []) : [];
-                const isSelected = selectedCountryCode === code && code !== "";
-                const fill = getFill(colors);
+                const isSelected = code !== "" && selectedCountryCode === code;
 
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={fill}
+                    fill={getFill(colors)}
                     stroke={isSelected ? "#1E3A5F" : "#FFFFFF"}
                     strokeWidth={isSelected ? 2 : 0.5}
                     style={{
-                      default: { outline: "none", cursor: colors.length > 0 ? "pointer" : "default" },
+                      default: { outline: "none", cursor: "pointer" },
                       hover: { outline: "none", filter: "brightness(0.85)", cursor: "pointer" },
                       pressed: { outline: "none" },
                     }}
-                    onClick={() => code && onCountryClick(code)}
+                    onClick={() => onCountryClick(code, geoName)}
                   />
                 );
               })

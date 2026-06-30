@@ -3,16 +3,21 @@
 import React, { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import MapFilters from "@/components/map/MapFilters";
-import CountryPopup from "@/components/map/CountryPopup";
+import CountryPanel from "@/components/map/CountryPanel";
 import { CountryWithVisitors, MapFilters as IMapFilters, PersonWithTrips } from "@/types";
 
 const WorldMap = dynamic(() => import("@/components/map/WorldMap"), { ssr: false });
+
+interface SelectedInfo {
+  code: string;      // alpha-3 or "" if not in DB
+  geoName: string;   // raw topojson name, always set
+}
 
 export default function WorldPage() {
   const [persons, setPersons] = useState<PersonWithTrips[]>([]);
   const [countries, setCountries] = useState<CountryWithVisitors[]>([]);
   const [filters, setFilters] = useState<IMapFilters>({ continents: [], personIds: [] });
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SelectedInfo | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -28,12 +33,15 @@ export default function WorldPage() {
     });
   }, []);
 
-  const selectedCountry = selectedCode
-    ? countries.find((c) => c.code === selectedCode) ?? null
+  const selectedCountry = selected?.code
+    ? countries.find((c) => c.code === selected.code) ?? null
     : null;
 
-  const handleCountryClick = useCallback((code: string) => {
-    setSelectedCode((prev) => (prev === code ? null : code));
+  const handleCountryClick = useCallback((code: string, geoName: string) => {
+    setSelected((prev) => {
+      if (prev?.code === code && prev?.geoName === geoName) return null; // deselect same
+      return { code, geoName };
+    });
   }, []);
 
   const searchResults =
@@ -68,12 +76,12 @@ export default function WorldPage() {
       <MapFilters persons={persons} filters={filters} onChange={setFilters} />
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Map area */}
+        {/* Map */}
         <div className="flex-1 relative">
           <WorldMap
             countries={countries}
             filters={filters}
-            selectedCountryCode={selectedCode}
+            selectedCountryCode={selected?.code ?? null}
             onCountryClick={handleCountryClick}
           />
 
@@ -92,7 +100,7 @@ export default function WorldPage() {
                   <li key={c.code}>
                     <button
                       className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm flex items-center gap-2"
-                      onClick={() => { setSelectedCode(c.code); setSearch(""); }}
+                      onClick={() => { setSelected({ code: c.code, geoName: c.name }); setSearch(""); }}
                     >
                       <span className="font-medium">{c.name}</span>
                       <span className="text-xs text-gray-400 ml-auto">{c.continent.replace("_", " ")}</span>
@@ -103,16 +111,18 @@ export default function WorldPage() {
             )}
           </div>
 
-          {selectedCountry && (
-            <CountryPopup
+          {/* Country panel */}
+          {selected && (
+            <CountryPanel
               country={selectedCountry}
+              geoName={selected.geoName}
               persons={persons}
-              onClose={() => setSelectedCode(null)}
+              onClose={() => setSelected(null)}
             />
           )}
         </div>
 
-        {/* Leaderboard */}
+        {/* Leaderboard sidebar */}
         <aside className="hidden lg:flex flex-col w-72 border-l border-gray-100 bg-white overflow-y-auto">
           <div className="px-4 py-3 border-b border-gray-100">
             <h2 className="font-bold text-gray-700">🏆 Leaderboard</h2>
@@ -138,7 +148,7 @@ export default function WorldPage() {
                   {person.visitedCountries.map((c) => (
                     <button
                       key={c.code}
-                      onClick={() => setSelectedCode(c.code)}
+                      onClick={() => setSelected({ code: c.code, geoName: c.name })}
                       className="text-xs text-gray-500 hover:text-indigo-600 hover:underline"
                     >
                       {c.name}
@@ -149,6 +159,7 @@ export default function WorldPage() {
             ))}
           </ul>
 
+          {/* Legend */}
           <div className="mt-auto px-4 py-3 border-t border-gray-100 bg-gray-50">
             <p className="text-xs text-gray-500 font-medium mb-2">Legend</p>
             <div className="flex flex-col gap-1.5">
@@ -162,7 +173,7 @@ export default function WorldPage() {
                 <div className="w-4 h-4 rounded-sm flex-shrink-0 bg-gray-300" />
                 <span className="text-xs text-gray-400">Not visited</span>
               </div>
-              <p className="text-xs text-gray-400 mt-1 italic">Diagonal stripes = multiple visitors</p>
+              <p className="text-xs text-gray-400 mt-1 italic">Horizontal bands = multiple visitors</p>
             </div>
           </div>
         </aside>
