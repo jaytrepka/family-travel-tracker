@@ -162,25 +162,21 @@ export default function WorldPage() {
           {/* Legend */}
           <div className="mt-auto px-4 py-3 border-t border-gray-100 bg-gray-50">
             <p className="text-xs text-gray-500 font-medium mb-2">Legend</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-indigo-500" />
+                <span className="text-xs text-gray-500">All / multiple selected</span>
+              </div>
               {persons.map((p) => (
                 <div key={p.id} className="flex items-center gap-2">
-                  {/* Dot indicator preview */}
-                  <svg width="10" height="10" viewBox="-5 -5 10 10">
-                   <circle cx="0" cy="0" r="3" fill={p.color} stroke="white" strokeWidth="0.8" />
-                  </svg>
-                  <span className="text-xs text-gray-600">{p.emoji} {p.name}</span>
+                  <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="text-xs text-gray-600">{p.emoji} {p.name} only</span>
                 </div>
               ))}
               <div className="flex items-center gap-2 mt-1">
-                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-gray-200 border border-gray-300" />
+                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-gray-300" />
                 <span className="text-xs text-gray-400">Not visited</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-indigo-50 border border-indigo-200" />
-                <span className="text-xs text-gray-400">Visited</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1 italic">Pins = visitors per country</p>
             </div>
           </div>
         </aside>
